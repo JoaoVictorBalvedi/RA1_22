@@ -1,0 +1,177 @@
+{
+  "tipo": "programa",
+  "comandos": [
+    {
+      "tipo": "var_escrita",
+      "nome": "X",
+      "valor": {
+        "tipo": "numero",
+        "valor": "10"
+      }
+    },
+    {
+      "tipo": "var_escrita",
+      "nome": "Y",
+      "valor": {
+        "tipo": "numero",
+        "valor": "20"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "+",
+      "esquerda": {
+        "tipo": "var_leitura",
+        "nome": "X"
+      },
+      "direita": {
+        "tipo": "var_leitura",
+        "nome": "Y"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "-",
+      "esquerda": {
+        "tipo": "var_leitura",
+        "nome": "Y"
+      },
+      "direita": {
+        "tipo": "var_leitura",
+        "nome": "X"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "*",
+      "esquerda": {
+        "tipo": "var_leitura",
+        "nome": "X"
+      },
+      "direita": {
+        "tipo": "var_leitura",
+        "nome": "Y"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "|",
+      "esquerda": {
+        "tipo": "var_leitura",
+        "nome": "Y"
+      },
+      "direita": {
+        "tipo": "var_leitura",
+        "nome": "X"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "/",
+      "esquerda": {
+        "tipo": "var_leitura",
+        "nome": "Y"
+      },
+      "direita": {
+        "tipo": "var_leitura",
+        "nome": "X"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "%",
+      "esquerda": {
+        "tipo": "var_leitura",
+        "nome": "Y"
+      },
+      "direita": {
+        "tipo": "var_leitura",
+        "nome": "X"
+      }
+    },
+    {
+      "tipo": "operacao",
+      "operador": "^",
+      "esquerda": {
+        "tipo": "numero",
+        "valor": "2.0"
+      },
+      "direita": {
+        "tipo": "numero",
+        "valor": "3"
+      }
+    },
+    {
+      "tipo": "if",
+      "condicao": {
+        "tipo": "comparacao",
+        "operador": "<",
+        "esquerda": {
+          "tipo": "var_leitura",
+          "nome": "X"
+        },
+        "direita": {
+          "tipo": "var_leitura",
+          "nome": "Y"
+        }
+      },
+      "comando": {
+        "tipo": "operacao",
+        "operador": "+",
+        "esquerda": {
+          "tipo": "var_leitura",
+          "nome": "X"
+        },
+        "direita": {
+          "tipo": "var_leitura",
+          "nome": "Y"
+        }
+      }
+    },
+    {
+      "tipo": "while",
+      "condicao": {
+        "tipo": "comparacao",
+        "operador": "<",
+        "esquerda": {
+          "tipo": "var_leitura",
+          "nome": "X"
+        },
+        "direita": {
+          "tipo": "numero",
+          "valor": "12"
+        }
+      },
+      "comando": {
+        "tipo": "var_escrita",
+        "nome": "X",
+        "valor": {
+          "tipo": "operacao",
+          "operador": "+",
+          "esquerda": {
+            "tipo": "var_leitura",
+            "nome": "X"
+          },
+          "direita": {
+            "tipo": "numero",
+            "valor": "1"
+          }
+        }
+      }
+    },
+    {
+      "tipo": "res",
+      "indice": 1
+    },
+    {
+      "tipo": "mem_escrita",
+      "valor": {
+        "tipo": "numero",
+        "valor": "99.9"
+      }
+    },
+    {
+      "tipo": "mem_leitura"
+    }
+  ]
+}

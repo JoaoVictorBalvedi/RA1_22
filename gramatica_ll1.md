@@ -1,85 +1,86 @@
-# Gramática LL(1), FIRST, FOLLOW e Tabela de Análise
+# Gramatica LL(1), FIRST, FOLLOW e Tabela de Analise
 
-## Regras de Produção
+## Sintaxe das estruturas de controle
+
+A linguagem usa notacao polonesa reversa. As estruturas de controle foram definidas tambem em formato pos-fixado:
+
+- Decisao: `(condicao comando IF)`
+- Repeticao: `(condicao comando WHILE)`
+
+Exemplos:
+
+```txt
+((X Y <) (X Y +) IF)
+((X 12 <) ((X 1 +) X) WHILE)
+```
+
+## Regras de producao
+
 - `programa -> inicio lista_comandos fim EOF`
-- `inicio -> START_STMT`
-- `fim -> END_STMT`
+- `inicio -> START_LINE`
+- `fim -> END_LINE`
 - `lista_comandos -> comando lista_comandos | ε`
-- `comando -> expressao | decisao | laco`
-- `expressao -> LPAREN conteudo_expr RPAREN`
-- `conteudo_expr -> operando | operando MEM | operando RES | operando IDENTIFIER | operando operando OPERATOR | operando operando REL_OPERATOR`
-- `operando -> NUMBER | IDENTIFIER | MEM | expressao`
-- `decisao -> LPAREN expressao bloco IF RPAREN`
-- `laco -> LPAREN expressao bloco WHILE RPAREN`
-- `bloco -> LPAREN lista_comandos RPAREN`
+- `comando -> estrutura`
+- `estrutura -> LPAREN elemento resto`
+- `elemento -> NUMBER | IDENT_ELEM | MEM_ELEM | estrutura`
+- `resto -> RPAREN | RES RPAREN | MEM_ASSIGN RPAREN | IDENT_ASSIGN RPAREN | elemento2 operador_final RPAREN`
+- `operador_final -> OPERATOR | REL_OPERATOR | IF | WHILE`
+- `elemento2 -> NUMBER | IDENT_REST | MEM_REST | estrutura`
 
-## FIRST
-- `FIRST(programa) = {START_STMT}`
-- `FIRST(inicio) = {START_STMT}`
-- `FIRST(fim) = {END_STMT}`
+## Conjuntos FIRST
+
+- `FIRST(programa) = {START_LINE}`
+- `FIRST(inicio) = {START_LINE}`
+- `FIRST(fim) = {END_LINE}`
 - `FIRST(lista_comandos) = {LPAREN, ε}`
 - `FIRST(comando) = {LPAREN}`
-- `FIRST(expressao) = {LPAREN}`
-- `FIRST(conteudo_expr) = {IDENTIFIER, LPAREN, MEM, NUMBER}`
-- `FIRST(operando) = {IDENTIFIER, LPAREN, MEM, NUMBER}`
-- `FIRST(decisao) = {LPAREN}`
-- `FIRST(laco) = {LPAREN}`
-- `FIRST(bloco) = {LPAREN}`
+- `FIRST(estrutura) = {LPAREN}`
+- `FIRST(elemento) = {IDENT_ELEM, LPAREN, MEM_ELEM, NUMBER}`
+- `FIRST(elemento2) = {IDENT_REST, LPAREN, MEM_REST, NUMBER}`
+- `FIRST(resto) = {IDENT_ASSIGN, IDENT_REST, LPAREN, MEM_ASSIGN, MEM_REST, NUMBER, RES, RPAREN}`
+- `FIRST(operador_final) = {IF, OPERATOR, REL_OPERATOR, WHILE}`
 
-## FOLLOW
+## Conjuntos FOLLOW
+
 - `FOLLOW(programa) = {EOF}`
-- `FOLLOW(inicio) = {END_STMT, LPAREN}`
+- `FOLLOW(inicio) = {LPAREN, END_LINE}`
 - `FOLLOW(fim) = {EOF}`
-- `FOLLOW(lista_comandos) = {END_STMT, RPAREN}`
-- `FOLLOW(comando) = {END_STMT, LPAREN, RPAREN}`
-- `FOLLOW(expressao) = {END_STMT, IDENTIFIER, LPAREN, MEM, NUMBER, OPERATOR, REL_OPERATOR, RES, RPAREN}`
-- `FOLLOW(conteudo_expr) = {RPAREN}`
-- `FOLLOW(operando) = {IDENTIFIER, LPAREN, MEM, NUMBER, OPERATOR, REL_OPERATOR, RES, RPAREN}`
-- `FOLLOW(decisao) = {END_STMT, LPAREN, RPAREN}`
-- `FOLLOW(laco) = {END_STMT, LPAREN, RPAREN}`
-- `FOLLOW(bloco) = {IF, WHILE}`
+- `FOLLOW(lista_comandos) = {END_LINE}`
+- `FOLLOW(comando) = {LPAREN, END_LINE}`
+- `FOLLOW(estrutura) = {IDENTIFIER, IF, LPAREN, MEM, NUMBER, OPERATOR, REL_OPERATOR, RES, RPAREN, WHILE}`
+- `FOLLOW(elemento) = {IDENTIFIER, IF, LPAREN, MEM, NUMBER, OPERATOR, REL_OPERATOR, RES, RPAREN, WHILE}`
+- `FOLLOW(resto) = {IDENTIFIER, IF, LPAREN, MEM, NUMBER, OPERATOR, REL_OPERATOR, RES, RPAREN, WHILE}`
+- `FOLLOW(operador_final) = {RPAREN}`
 
-## Tabela LL(1)
-- `M[programa, START_STMT] = inicio lista_comandos fim EOF`
-- `M[inicio, START_STMT] = START_STMT`
-- `M[fim, END_STMT] = END_STMT`
-- `M[lista_comandos, LPAREN] = comando lista_comandos`
-- `M[lista_comandos, END_STMT] = ε`
-- `M[lista_comandos, RPAREN] = ε`
-- `M[comando, LPAREN] = laco`
-- `M[expressao, LPAREN] = LPAREN conteudo_expr RPAREN`
-- `M[conteudo_expr, NUMBER] = operando operando REL_OPERATOR`
-- `M[conteudo_expr, MEM] = operando operando REL_OPERATOR`
-- `M[conteudo_expr, IDENTIFIER] = operando operando REL_OPERATOR`
-- `M[conteudo_expr, LPAREN] = operando operando REL_OPERATOR`
-- `M[operando, NUMBER] = NUMBER`
-- `M[operando, IDENTIFIER] = IDENTIFIER`
-- `M[operando, MEM] = MEM`
-- `M[operando, LPAREN] = expressao`
-- `M[decisao, LPAREN] = LPAREN expressao bloco IF RPAREN`
-- `M[laco, LPAREN] = LPAREN expressao bloco WHILE RPAREN`
-- `M[bloco, LPAREN] = LPAREN lista_comandos RPAREN`
+## Tabela de analise LL(1)
 
-## Conflitos
-- `(('comando', 'LPAREN'), ['expressao'], ['decisao'])`
-- `(('comando', 'LPAREN'), ['decisao'], ['laco'])`
-- `(('conteudo_expr', 'NUMBER'), ['operando'], ['operando', 'MEM'])`
-- `(('conteudo_expr', 'MEM'), ['operando'], ['operando', 'MEM'])`
-- `(('conteudo_expr', 'IDENTIFIER'), ['operando'], ['operando', 'MEM'])`
-- `(('conteudo_expr', 'LPAREN'), ['operando'], ['operando', 'MEM'])`
-- `(('conteudo_expr', 'NUMBER'), ['operando', 'MEM'], ['operando', 'RES'])`
-- `(('conteudo_expr', 'MEM'), ['operando', 'MEM'], ['operando', 'RES'])`
-- `(('conteudo_expr', 'IDENTIFIER'), ['operando', 'MEM'], ['operando', 'RES'])`
-- `(('conteudo_expr', 'LPAREN'), ['operando', 'MEM'], ['operando', 'RES'])`
-- `(('conteudo_expr', 'NUMBER'), ['operando', 'RES'], ['operando', 'IDENTIFIER'])`
-- `(('conteudo_expr', 'MEM'), ['operando', 'RES'], ['operando', 'IDENTIFIER'])`
-- `(('conteudo_expr', 'IDENTIFIER'), ['operando', 'RES'], ['operando', 'IDENTIFIER'])`
-- `(('conteudo_expr', 'LPAREN'), ['operando', 'RES'], ['operando', 'IDENTIFIER'])`
-- `(('conteudo_expr', 'NUMBER'), ['operando', 'IDENTIFIER'], ['operando', 'operando', 'OPERATOR'])`
-- `(('conteudo_expr', 'MEM'), ['operando', 'IDENTIFIER'], ['operando', 'operando', 'OPERATOR'])`
-- `(('conteudo_expr', 'IDENTIFIER'), ['operando', 'IDENTIFIER'], ['operando', 'operando', 'OPERATOR'])`
-- `(('conteudo_expr', 'LPAREN'), ['operando', 'IDENTIFIER'], ['operando', 'operando', 'OPERATOR'])`
-- `(('conteudo_expr', 'NUMBER'), ['operando', 'operando', 'OPERATOR'], ['operando', 'operando', 'REL_OPERATOR'])`
-- `(('conteudo_expr', 'MEM'), ['operando', 'operando', 'OPERATOR'], ['operando', 'operando', 'REL_OPERATOR'])`
-- `(('conteudo_expr', 'IDENTIFIER'), ['operando', 'operando', 'OPERATOR'], ['operando', 'operando', 'REL_OPERATOR'])`
-- `(('conteudo_expr', 'LPAREN'), ['operando', 'operando', 'OPERATOR'], ['operando', 'operando', 'REL_OPERATOR'])`
+| Nao-terminal | Terminal | Producao |
+|---|---|---|
+| `programa` | `START_LINE` | `programa -> inicio lista_comandos fim EOF` |
+| `inicio` | `START_LINE` | `inicio -> START_LINE` |
+| `fim` | `END_LINE` | `fim -> END_LINE` |
+| `lista_comandos` | `LPAREN` | `lista_comandos -> comando lista_comandos` |
+| `lista_comandos` | `END_LINE` | `lista_comandos -> ε` |
+| `comando` | `LPAREN` | `comando -> estrutura` |
+| `estrutura` | `LPAREN` | `estrutura -> LPAREN elemento resto` |
+| `elemento` | `IDENTIFIER` | `elemento -> IDENTIFIER` |
+| `elemento` | `LPAREN` | `elemento -> estrutura` |
+| `elemento` | `MEM_ELEM` | `elemento -> MEM_ELEM` |
+| `elemento` | `NUMBER` | `elemento -> NUMBER` |
+| `elemento` | `IDENT_ELEM` | `elemento -> IDENT_ELEM` |
+| `resto` | `IDENT_ASSIGN` | `resto -> IDENT_ASSIGN RPAREN` |
+| `resto` | `IDENT_REST` | `resto -> elemento2 operador_final RPAREN` |
+| `resto` | `LPAREN` | `resto -> elemento2 operador_final RPAREN` |
+| `resto` | `MEM_ASSIGN` | `resto -> MEM_ASSIGN RPAREN` |
+| `resto` | `MEM_REST` | `resto -> elemento2 operador_final RPAREN` |
+| `resto` | `NUMBER` | `resto -> elemento2 operador_final RPAREN` |
+| `resto` | `RES` | `resto -> RES RPAREN` |
+| `resto` | `RPAREN` | `resto -> RPAREN` |
+| `operador_final` | `IF` | `operador_final -> IF` |
+| `operador_final` | `OPERATOR` | `operador_final -> OPERATOR` |
+| `operador_final` | `REL_OPERATOR` | `operador_final -> REL_OPERATOR` |
+| `operador_final` | `WHILE` | `operador_final -> WHILE` |
+
+## Observacao sobre a implementacao
+
+O parser implementado e descendente recursivo e usa a mesma decisao preditiva da tabela. Em comandos com estrutura RPN, a funcao de parsing consome o primeiro elemento e usa o proximo token para selecionar a continuidade da producao fatorada.

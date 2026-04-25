@@ -1,17 +1,15 @@
-# Grupo: <RA2_22>
 # Integrantes do grupo (ordem alfabetica):
 # Joao Victor Balvedi - @JoaoVictorBalvedi
 #
-# Nome do grupo no Canvas: <RA2_22>
-
-"""Gerador de Assembly ARMv7 DE1-SOC a partir da AST."""
+# Nome do grupo no Canvas: RA1 22
 
 
 def registrarConstante(valor, contexto):
-    if valor not in contexto["constantes"]:
+    valor_str = str(valor)
+    if valor_str not in contexto["constantes"]:
         rotulo = f"const_{len(contexto['constantes'])}"
-        contexto["constantes"][valor] = rotulo
-    return contexto["constantes"][valor]
+        contexto["constantes"][valor_str] = rotulo
+    return contexto["constantes"][valor_str]
 
 
 def registrarVariavel(nome, contexto):
@@ -20,25 +18,17 @@ def registrarVariavel(nome, contexto):
     return contexto["variaveis"][nome]
 
 
-def novoLabel(contexto, prefixo):
-    label = f"{prefixo}_{contexto['label_id']}"
-    contexto["label_id"] += 1
-    return label
+def novoRotulo(contexto, prefixo):
+    valor = contexto["rotulo"]
+    contexto["rotulo"] += 1
+    return f"{prefixo}_{valor}"
 
 
 def gerarCodigoNo(no, contexto):
     tipo = no["tipo"]
     codigo = []
 
-    if tipo == "programa":
-        for comando in no["comandos"]:
-            codigo.extend(gerarCodigoNo(comando, contexto))
-            codigo.append(f"LDR r0, =result_{contexto['indice_resultado']}")
-            codigo.append("VSTR.F64 d0, [r0]")
-            codigo.append("")
-            contexto["indice_resultado"] += 1
-
-    elif tipo == "numero":
+    if tipo == "numero":
         rotulo = registrarConstante(no["valor"], contexto)
         codigo.append(f"LDR r0, ={rotulo}")
         codigo.append("VLDR.F64 d0, [r0]")
@@ -53,9 +43,9 @@ def gerarCodigoNo(no, contexto):
         codigo.append("VSTR.F64 d0, [r0]")
 
     elif tipo == "res":
-        indice_alvo = contexto["indice_resultado"] - no["indice"]
+        indice_alvo = contexto["indice_atual"] - no["indice"]
         if indice_alvo < 0:
-            raise ValueError(f"RES({no['indice']}): nao ha resultado anterior suficiente")
+            raise ValueError(f"RES({no['indice']}): resultado anterior inexistente")
         codigo.append(f"LDR r0, =result_{indice_alvo}")
         codigo.append("VLDR.F64 d0, [r0]")
 
@@ -98,62 +88,56 @@ def gerarCodigoNo(no, contexto):
             raise ValueError(f"Operador desconhecido: {operador}")
 
     elif tipo == "comparacao":
-        # Resultado: d0 = 1.0 se verdadeiro, 0.0 se falso.
-        label_true = novoLabel(contexto, "cmp_true")
-        label_end = novoLabel(contexto, "cmp_end")
+        verdadeiro = novoRotulo(contexto, "cmp_true")
+        fim = novoRotulo(contexto, "cmp_end")
 
         codigo.extend(gerarCodigoNo(no["esquerda"], contexto))
         codigo.append("VPUSH {d0}")
         codigo.extend(gerarCodigoNo(no["direita"], contexto))
         codigo.append("VPOP {d1}")
-        codigo.append("VCMP.F64 d1, d0")
+        codigo.append("VCMPE.F64 d1, d0")
         codigo.append("VMRS APSR_nzcv, FPSCR")
 
-        op = no["operador"]
-        mapa = {
+        salto = {
             ">": "BGT",
             "<": "BLT",
             ">=": "BGE",
             "<=": "BLE",
             "==": "BEQ",
             "!=": "BNE",
-        }
-        if op not in mapa:
-            raise ValueError(f"Operador relacional desconhecido: {op}")
+        }[no["operador"]]
 
-        codigo.append(f"{mapa[op]} {label_true}")
-        codigo.append("LDR r0, =const_false")
-        codigo.append("VLDR.F64 d0, [r0]")
-        codigo.append(f"B {label_end}")
-        codigo.append(f"{label_true}:")
-        codigo.append("LDR r0, =const_true")
-        codigo.append("VLDR.F64 d0, [r0]")
-        codigo.append(f"{label_end}:")
+        codigo.append(f"{salto} {verdadeiro}")
+        codigo.append("MOV r0, #0")
+        codigo.append(f"B {fim}")
+        codigo.append(f"{verdadeiro}:")
+        codigo.append("MOV r0, #1")
+        codigo.append(f"{fim}:")
+        codigo.append("VMOV s0, r0")
+        codigo.append("VCVT.F64.S32 d0, s0")
 
     elif tipo == "if":
-        label_fim = novoLabel(contexto, "if_fim")
+        fim = novoRotulo(contexto, "if_end")
         codigo.extend(gerarCodigoNo(no["condicao"], contexto))
-        codigo.append("VCMP.F64 d0, #0")
-        codigo.append("VMRS APSR_nzcv, FPSCR")
-        codigo.append(f"BEQ {label_fim}")
-        for comando in no["corpo"]:
-            codigo.extend(gerarCodigoNo(comando, contexto))
-            codigo.append("")
-        codigo.append(f"{label_fim}:")
+        codigo.append("VCVT.S32.F64 s0, d0")
+        codigo.append("VMOV r0, s0")
+        codigo.append("CMP r0, #0")
+        codigo.append(f"BEQ {fim}")
+        codigo.extend(gerarCodigoNo(no["comando"], contexto))
+        codigo.append(f"{fim}:")
 
     elif tipo == "while":
-        label_inicio = novoLabel(contexto, "while_inicio")
-        label_fim = novoLabel(contexto, "while_fim")
-        codigo.append(f"{label_inicio}:")
+        inicio = novoRotulo(contexto, "while_start")
+        fim = novoRotulo(contexto, "while_end")
+        codigo.append(f"{inicio}:")
         codigo.extend(gerarCodigoNo(no["condicao"], contexto))
-        codigo.append("VCMP.F64 d0, #0")
-        codigo.append("VMRS APSR_nzcv, FPSCR")
-        codigo.append(f"BEQ {label_fim}")
-        for comando in no["corpo"]:
-            codigo.extend(gerarCodigoNo(comando, contexto))
-            codigo.append("")
-        codigo.append(f"B {label_inicio}")
-        codigo.append(f"{label_fim}:")
+        codigo.append("VCVT.S32.F64 s0, d0")
+        codigo.append("VMOV r0, s0")
+        codigo.append("CMP r0, #0")
+        codigo.append(f"BEQ {fim}")
+        codigo.extend(gerarCodigoNo(no["comando"], contexto))
+        codigo.append(f"B {inicio}")
+        codigo.append(f"{fim}:")
 
     else:
         raise ValueError(f"Tipo de no desconhecido: {tipo}")
@@ -236,37 +220,39 @@ def gerarRotinasAuxiliares(contexto):
     return rotinas
 
 
-def contar_comandos_top_level(arvore):
-    return len(arvore.get("comandos", []))
-
-
 def gerarAssembly(arvore):
+    comandos = arvore["comandos"] if arvore["tipo"] == "programa" else arvore
     contexto = {
         "constantes": {},
         "variaveis": {},
         "usa_div_int": False,
         "usa_mod_int": False,
         "usa_pow_int": False,
-        "indice_resultado": 0,
-        "label_id": 0,
+        "indice_atual": 0,
+        "rotulo": 0,
     }
 
-    corpo = gerarCodigoNo(arvore, contexto)
+    corpo = []
+    for i, comando in enumerate(comandos):
+        contexto["indice_atual"] = i
+        corpo.append(f"    @ --- comando {i} ---")
+        linhas = gerarCodigoNo(comando, contexto)
+        corpo.extend("    " + linha if not linha.endswith(":") else linha for linha in linhas)
+        corpo.append(f"    LDR r0, =result_{i}")
+        corpo.append("    VSTR.F64 d0, [r0]")
+        corpo.append("")
 
-    total = max(1, contexto["indice_resultado"])
-    corpo.append("@ --- exibe ultimo resultado nos LEDs ---")
-    corpo.append(f"LDR r0, =result_{total - 1}")
-    corpo.append("VLDR.F64 d0, [r0]")
-    corpo.append("VCVT.S32.F64 s0, d0")
-    corpo.append("VMOV r1, s0")
-    corpo.append("LDR r0, =0xFF200000")
-    corpo.append("STR r1, [r0]")
-    corpo.append("")
+    if comandos:
+        corpo.append("    @ --- exibe ultimo resultado nos LEDs ---")
+        corpo.append(f"    LDR r0, =result_{len(comandos) - 1}")
+        corpo.append("    VLDR.F64 d0, [r0]")
+        corpo.append("    VCVT.S32.F64 s0, d0")
+        corpo.append("    VMOV r1, s0")
+        corpo.append("    LDR r0, =0xFF200000")
+        corpo.append("    STR r1, [r0]")
+        corpo.append("")
 
     linhas_data = [".data", ".align 3"]
-    linhas_data.append("const_true: .double 1.0")
-    linhas_data.append("const_false: .double 0.0")
-
     for valor, rotulo in contexto["constantes"].items():
         linhas_data.append(f"{rotulo}: .double {valor}")
 
@@ -275,12 +261,12 @@ def gerarAssembly(arvore):
     for _, rotulo in contexto["variaveis"].items():
         linhas_data.append(f"{rotulo}: .double 0.0")
 
-    for i in range(total):
+    for i in range(len(comandos)):
         linhas_data.append(f"result_{i}: .double 0.0")
 
-    linhas_text = [".text", ".global _start", "_start:"]
-    linhas_text.extend("    " + linha if linha and not linha.endswith(":") and not linha.startswith("@") else linha for linha in corpo)
+    linhas_text = ["", ".text", ".global _start", "_start:"]
+    linhas_text.extend(corpo)
     linhas_text.extend(["fim:", "    B fim"])
     linhas_text.extend(gerarRotinasAuxiliares(contexto))
 
-    return "\n".join(linhas_data + [""] + linhas_text)
+    return "\n".join(linhas_data + linhas_text)

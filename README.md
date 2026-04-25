@@ -1,168 +1,158 @@
-# Analisador Sintático LL(1) — RPN para Assembly ARMv7
+# Analisador Sintatico LL(1) — Linguagem RPN
 
 **Disciplina:** Construção de Interpretadores  
-**Grupo:** `<RA2_22>`
+**Grupo no Canvas:** RA1 22
 
-## Integrantes em ordem alfabética
+## Integrantes em ordem alfabetica
 
 | Nome | GitHub |
 |---|---|
 | Joao Victor Balvedi | @JoaoVictorBalvedi |
 
-## Descrição
+## Descricao
 
-Este projeto implementa a Fase 2 do trabalho: um analisador sintático para uma linguagem simplificada em notação polonesa reversa, usando parser descendente recursivo LL(1), geração de árvore sintática e geração de Assembly ARMv7 para CPUlator DE1-SOC.
+Este projeto implementa a segunda fase do trabalho: um analisador sintatico LL(1) para uma linguagem simples em notacao polonesa reversa (RPN). O programa:
 
-O fluxo geral é:
-
-```text
-arquivo fonte -> tokens -> parser LL(1) -> árvore sintática -> assembly
-```
+1. le um arquivo `.txt` informado por argumento de linha de comando;
+2. executa a analise lexica e gera tokens;
+3. valida a estrutura do programa com um parser descendente recursivo LL(1);
+4. gera a arvore sintatica em JSON;
+5. gera codigo Assembly ARMv7 para o ambiente CPUlator DE1-SoC;
+6. salva um relatorio da ultima execucao.
 
 ## Como executar
 
 ```bash
-python main.py teste1.txt
+chmod +x ./AnalisadorSintatico
+./AnalisadorSintatico teste1.txt
 ```
 
-O programa gera:
+Tambem podem ser usados:
 
-- `teste1_tokens.json`
-- `teste1_arvore.json`
-- `teste1.s`
-- `gramatica_ll1.md`
-- `arvore_ultima_execucao.md`
+```bash
+./AnalisadorSintatico teste2.txt
+./AnalisadorSintatico teste3.txt
+```
 
-## Como rodar testes
+## Como rodar os testes
 
 ```bash
 python tests.py
 ```
 
+## Arquivos principais
+
+| Arquivo | Funcao |
+|---|---|
+| `main.py` | Integra lexer, gramatica, parser, AST e Assembly |
+| `lexer.py` | Implementa `lerTokens(arquivo)` |
+| `grammar.py` | Implementa `construirGramatica`, FIRST, FOLLOW e tabela LL(1) |
+| `syntactic_parser.py` | Implementa `parsear(tokens, tabela_ll1)` |
+| `ast_nodes.py` | Define os nos da arvore sintatica |
+| `assembly.py` | Implementa `gerarAssembly(arvore)` |
+| `tests.py` | Executa testes validos e invalidos |
+| `gramatica_ll1.md` | Documenta gramatica, FIRST, FOLLOW e tabela LL(1) |
+
 ## Sintaxe da linguagem
 
-Todo programa deve começar com:
+Todo programa deve comecar com:
 
-```text
+```txt
 (START)
 ```
 
 E terminar com:
 
-```text
+```txt
 (END)
 ```
 
-### Expressões aritméticas
+As expressoes seguem o formato RPN:
 
-Formato:
-
-```text
-(A B op)
+```txt
+(A B operador)
 ```
 
-Operadores:
+Exemplos:
+
+```txt
+(3 4 +)
+(10 2 /)
+((3 4 +) (2 5 *) |)
+```
+
+## Operadores
 
 | Operador | Significado |
 |---|---|
 | `+` | soma |
-| `-` | subtração |
-| `*` | multiplicação |
-| `|` | divisão real |
-| `/` | divisão inteira |
-| `%` | resto |
-| `^` | potência |
+| `-` | subtracao |
+| `*` | multiplicacao |
+| `|` | divisao real |
+| `/` | divisao inteira |
+| `%` | resto da divisao inteira |
+| `^` | potenciacao |
 
-Exemplos:
+## Comandos especiais
 
-```text
-(3 4 +)
-((2 3 *) 4 +)
-```
+| Comando | Significado |
+|---|---|
+| `(N RES)` | acessa o resultado de N comandos anteriores |
+| `(V MEM)` | grava V na memoria especial MEM |
+| `(MEM)` | le a memoria especial MEM |
+| `(V X)` | grava V na variavel X |
+| `(X)` | le a variavel X |
 
-### Memória e resultados
+## Estruturas de controle adotadas
 
-```text
-(V MEM)    salva valor em MEM
-(MEM)      lê MEM
-(V VAR)    salva valor em variável nomeada
-(VAR)      lê variável nomeada
-(N RES)    lê resultado de N comandos anteriores
-```
+As estruturas de controle tambem seguem notacao pos-fixada.
 
-Exemplos:
+### Decisao
 
-```text
-(10 X)
-(X)
-(1 RES)
-```
-
-### Operadores relacionais
-
-Formato:
-
-```text
-(A B relop)
-```
-
-Operadores:
-
-```text
-> < >= <= == !=
+```txt
+(condicao comando IF)
 ```
 
 Exemplo:
 
-```text
-(X 10 >)
+```txt
+((X Y <) (X Y +) IF)
 ```
 
-### Tomada de decisão
+Significado: se `X < Y`, executa `(X Y +)`.
 
-Sintaxe escolhida pelo grupo:
+### Repeticao
 
-```text
-(condicao (comandos) IF)
-```
-
-Exemplo:
-
-```text
-((X 10 >) ((100 MEM)) IF)
-```
-
-### Laço de repetição
-
-Sintaxe escolhida pelo grupo:
-
-```text
-(condicao (comandos) WHILE)
+```txt
+(condicao comando WHILE)
 ```
 
 Exemplo:
 
-```text
-((X 10 <) (((X 1 +) X)) WHILE)
+```txt
+((X 12 <) ((X 1 +) X) WHILE)
 ```
 
-## Organização dos arquivos
+Significado: enquanto `X < 12`, executa `((X 1 +) X)`.
 
-```text
-main.py              ponto de entrada
-lexer.py             analisador léxico
-syntactic_parser.py  parser descendente recursivo
-ast_nodes.py         criação dos nós da árvore
-grammar.py           gramática, FIRST, FOLLOW e tabela LL(1)
-assembly.py          geração de Assembly
-tests.py             testes básicos
-teste1.txt           teste válido
-teste2.txt           teste válido
-teste3.txt           teste válido
-teste_erro_lexico.txt      teste inválido
-teste_erro_sintatico.txt   teste inválido
+## Saidas geradas
+
+Ao executar:
+
+```bash
+./AnalisadorSintatico teste1.txt
 ```
 
-## Observações
+sao gerados:
 
-A gramática, os conjuntos FIRST/FOLLOW e a tabela LL(1) são gerados no arquivo `gramatica_ll1.md` a cada execução.
+| Arquivo | Conteudo |
+|---|---|
+| `teste1.s` | Assembly ARMv7 |
+| `teste1_tokens.json` | tokens da entrada |
+| `arvore_sintatica.json` | arvore sintatica da ultima execucao |
+| `arvore_sintatica.md` | arvore sintatica em formato markdown |
+| `ultima_execucao.md` | relatorio da ultima execucao |
+
+## CPUlator
+
+O arquivo `.s` pode ser testado no CPUlator ARMv7 DE1-SoC. O ultimo resultado tambem e enviado para os LEDs no endereco `0xFF200000`.

@@ -1,100 +1,117 @@
-# Grupo: <RA2_22>
 # Integrantes do grupo (ordem alfabetica):
 # Joao Victor Balvedi - @JoaoVictorBalvedi
 #
-# Nome do grupo no Canvas: <RA2_22>
-
-"""Gramatica LL(1), FIRST, FOLLOW e tabela de analise.
-
-Observacao importante:
-A linguagem usa RPN e tudo comeca por LPAREN, entao a implementacao do parser
-usa um pequeno lookahead interno apos LPAREN para distinguir START, END,
-expressao, IF e WHILE. A tabela abaixo documenta a gramatica usada.
-"""
+# Nome do grupo no Canvas: RA1 22
 
 EPSILON = "ε"
 EOF = "EOF"
 
 
+TERMINAIS = {
+    "START_LINE",
+    "END_LINE",
+    "LPAREN",
+    "RPAREN",
+    "NUMBER",
+    "IDENT_ELEM",
+    "IDENT_REST",
+    "IDENT_ASSIGN",
+    "MEM_ELEM",
+    "MEM_REST",
+    "MEM_ASSIGN",
+    "RES",
+    "IF",
+    "WHILE",
+    "OPERATOR",
+    "REL_OPERATOR",
+    "EOF",
+}
+
+
 def construirGramatica():
+    # Gramatica fatorada para documentacao e construcao da tabela LL(1).
+    # A implementacao do parser usa as mesmas decisoes por lookahead.
     return {
         "programa": [["inicio", "lista_comandos", "fim", "EOF"]],
-        "inicio": [["START_STMT"]],
-        "fim": [["END_STMT"]],
+        "inicio": [["START_LINE"]],
+        "fim": [["END_LINE"]],
         "lista_comandos": [["comando", "lista_comandos"], [EPSILON]],
-        "comando": [["expressao"], ["decisao"], ["laco"]],
-        "expressao": [["LPAREN", "conteudo_expr", "RPAREN"]],
-        "conteudo_expr": [
-            ["operando"],
-            ["operando", "MEM"],
-            ["operando", "RES"],
-            ["operando", "IDENTIFIER"],
-            ["operando", "operando", "OPERATOR"],
-            ["operando", "operando", "REL_OPERATOR"],
+        "comando": [["estrutura"]],
+        "estrutura": [["LPAREN", "elemento", "resto"]],
+        "elemento": [["NUMBER"], ["IDENT_ELEM"], ["MEM_ELEM"], ["estrutura"]],
+        "resto": [
+            ["RPAREN"],
+            ["RES", "RPAREN"],
+            ["MEM_ASSIGN", "RPAREN"],
+            ["IDENT_ASSIGN", "RPAREN"],
+            ["elemento2", "operador_final", "RPAREN"],
         ],
-        "operando": [["NUMBER"], ["IDENTIFIER"], ["MEM"], ["expressao"]],
-        "decisao": [["LPAREN", "expressao", "bloco", "IF", "RPAREN"]],
-        "laco": [["LPAREN", "expressao", "bloco", "WHILE", "RPAREN"]],
-        "bloco": [["LPAREN", "lista_comandos", "RPAREN"]],
+        "operador_final": [["OPERATOR"], ["REL_OPERATOR"], ["IF"], ["WHILE"]],
+        "elemento2": [["NUMBER"], ["IDENT_REST"], ["MEM_REST"], ["estrutura"]],
     }
 
 
-def eh_terminal(simbolo, gramatica):
-    return simbolo not in gramatica and simbolo != EPSILON
+def _eh_terminal(simbolo):
+    return simbolo in TERMINAIS or simbolo == EPSILON
 
 
 def calcularFirst(gramatica):
-    first = {nt: set() for nt in gramatica}
+    first = {nao_terminal: set() for nao_terminal in gramatica}
 
     mudou = True
     while mudou:
         mudou = False
-        for nt, producoes in gramatica.items():
+
+        for nao_terminal, producoes in gramatica.items():
             for producao in producoes:
                 if producao == [EPSILON]:
-                    if EPSILON not in first[nt]:
-                        first[nt].add(EPSILON)
+                    if EPSILON not in first[nao_terminal]:
+                        first[nao_terminal].add(EPSILON)
                         mudou = True
                     continue
 
-                adiciona_epsilon = True
+                todos_aceitam_epsilon = True
                 for simbolo in producao:
-                    if eh_terminal(simbolo, gramatica):
-                        if simbolo not in first[nt]:
-                            first[nt].add(simbolo)
-                            mudou = True
-                        adiciona_epsilon = False
-                        break
+                    if simbolo == EPSILON:
+                        conjunto = {EPSILON}
+                    elif _eh_terminal(simbolo):
+                        conjunto = {simbolo}
+                    else:
+                        conjunto = first[simbolo]
 
-                    antes = len(first[nt])
-                    first[nt].update(first[simbolo] - {EPSILON})
-                    if len(first[nt]) != antes:
+                    antes = len(first[nao_terminal])
+                    first[nao_terminal].update(conjunto - {EPSILON})
+                    if len(first[nao_terminal]) != antes:
                         mudou = True
 
-                    if EPSILON not in first[simbolo]:
-                        adiciona_epsilon = False
+                    if EPSILON not in conjunto:
+                        todos_aceitam_epsilon = False
                         break
 
-                if adiciona_epsilon:
-                    if EPSILON not in first[nt]:
-                        first[nt].add(EPSILON)
-                        mudou = True
+                if todos_aceitam_epsilon and EPSILON not in first[nao_terminal]:
+                    first[nao_terminal].add(EPSILON)
+                    mudou = True
+
     return first
 
 
-def firstDaSequencia(sequencia, first, gramatica):
+def firstDaSequencia(sequencia, first):
     resultado = set()
 
     if not sequencia or sequencia == [EPSILON]:
         return {EPSILON}
 
     for simbolo in sequencia:
-        if eh_terminal(simbolo, gramatica):
-            resultado.add(simbolo)
-            return resultado
+        if simbolo == EPSILON:
+            conjunto = {EPSILON}
+        elif _eh_terminal(simbolo):
+            conjunto = {simbolo}
+        else:
+            conjunto = first[simbolo]
 
-        resultado.update(first[simbolo] - {EPSILON})
-        if EPSILON not in first[simbolo]:
+        resultado.update(conjunto - {EPSILON})
+
+        if EPSILON not in conjunto:
             return resultado
 
     resultado.add(EPSILON)
@@ -102,25 +119,27 @@ def firstDaSequencia(sequencia, first, gramatica):
 
 
 def calcularFollow(gramatica, first):
-    follow = {nt: set() for nt in gramatica}
+    follow = {nao_terminal: set() for nao_terminal in gramatica}
     follow["programa"].add(EOF)
 
     mudou = True
     while mudou:
         mudou = False
-        for nt, producoes in gramatica.items():
+
+        for origem, producoes in gramatica.items():
             for producao in producoes:
-                for i, simbolo in enumerate(producao):
+                for indice, simbolo in enumerate(producao):
                     if simbolo not in gramatica:
                         continue
 
-                    beta = producao[i + 1:]
-                    first_beta = firstDaSequencia(beta, first, gramatica)
+                    beta = producao[indice + 1:]
+                    first_beta = firstDaSequencia(beta, first)
 
                     antes = len(follow[simbolo])
                     follow[simbolo].update(first_beta - {EPSILON})
+
                     if EPSILON in first_beta or not beta:
-                        follow[simbolo].update(follow[nt])
+                        follow[simbolo].update(follow[origem])
 
                     if len(follow[simbolo]) != antes:
                         mudou = True
@@ -132,35 +151,42 @@ def construirTabelaLl1(gramatica, first, follow):
     tabela = {}
     conflitos = []
 
-    for nt, producoes in gramatica.items():
+    for nao_terminal, producoes in gramatica.items():
+        tabela[nao_terminal] = {}
         for producao in producoes:
-            first_prod = firstDaSequencia(producao, first, gramatica)
+            first_producao = firstDaSequencia(producao, first)
 
-            for terminal in first_prod - {EPSILON}:
-                chave = (nt, terminal)
-                if chave in tabela and tabela[chave] != producao:
-                    conflitos.append((chave, tabela[chave], producao))
-                tabela[chave] = producao
+            for terminal in first_producao - {EPSILON}:
+                existente = tabela[nao_terminal].get(terminal)
+                if existente is None:
+                    tabela[nao_terminal][terminal] = producao
+                elif existente != producao:
+                    conflitos.append(
+                        f"Conflito em ({nao_terminal}, {terminal}): {existente} vs {producao}"
+                    )
 
-            if EPSILON in first_prod:
-                for terminal in follow[nt]:
-                    chave = (nt, terminal)
-                    if chave in tabela and tabela[chave] != producao:
-                        conflitos.append((chave, tabela[chave], producao))
-                    tabela[chave] = producao
+            if EPSILON in first_producao:
+                for terminal in follow[nao_terminal]:
+                    existente = tabela[nao_terminal].get(terminal)
+                    if existente is None:
+                        tabela[nao_terminal][terminal] = producao
+                    elif existente != producao:
+                        conflitos.append(
+                            f"Conflito em ({nao_terminal}, {terminal}): {existente} vs {producao}"
+                        )
 
     return tabela, conflitos
 
 
-def construirResumoGramatica():
+def construirTudoLl1():
     gramatica = construirGramatica()
     first = calcularFirst(gramatica)
     follow = calcularFollow(gramatica, first)
     tabela, conflitos = construirTabelaLl1(gramatica, first, follow)
     return {
         "gramatica": gramatica,
-        "first": {k: sorted(v) for k, v in first.items()},
-        "follow": {k: sorted(v) for k, v in follow.items()},
-        "tabela": {f"{nt}, {terminal}": prod for (nt, terminal), prod in tabela.items()},
+        "first": first,
+        "follow": follow,
+        "tabela": tabela,
         "conflitos": conflitos,
     }
